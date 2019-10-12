@@ -3,7 +3,7 @@
 //=============================================================================
 
 /*:
-* @plugindesc VividXP: Custom Map Descriptions
+* @plugindesc VividXP: Custom Map Descriptions v1.1
 * @author Lene
 *
 * @help In the map editor, enter <vividXPMD:(description)> in the notes field
@@ -43,6 +43,10 @@
 * Default: 3
 * @default 3
 *
+* @param Map Name and Description Display Time
+* @desc How long should map name and description appear when displayed, in frames.
+* Default: 150
+* @default 150
 */
 
 var VividXP = VividXP || {};
@@ -70,6 +74,9 @@ VividXP.CustomMapDescriptions.WindowHeight = Number(
     VividXP.CustomMapDescriptions.Parameters["Map Description Window Height"]
 );
 
+VividXP.CustomMapDescriptions.DisplayLength = Number(
+	VividXP.CustomMapDescriptions.Parameters["Map Name and Description Display Time"]
+);
 
 (function() {
 
@@ -123,8 +130,12 @@ VividXP.CustomMapDescriptions.WindowHeight = Number(
 
     Window_MapDescription.prototype.open = function() {
         this.refresh();
-        this._showCount = 150;
+        this._showCount = VividXP.CustomMapDescriptions.DisplayLength;
     };
+	Window_MapName.prototype.open = function() {
+		this.refresh();
+		this._showCount = VividXP.CustomMapDescriptions.DisplayLength;
+	};
 
     Window_MapDescription.prototype.close = function() {
         this._showCount = 0;
