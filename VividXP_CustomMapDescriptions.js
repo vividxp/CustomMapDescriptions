@@ -9,6 +9,13 @@
 * @help In the map editor, enter <vividXPMD:(description)> in the notes field
 * to set a description to be shown upon entering a map.
 *
+* Plugin Command:
+*   VividXPMD markSeen 1        # mark map #1 as seen
+*   VividXPMD markUnseen 1      # mark map #1 as unseen
+*   VividXPMD clearSeenMaps     # clear list of seen maps
+*
+* Map Note:
+*   <vividXPMD:foobar>              # Description text for map
 *
 * @param Map Description Background Fill Type
 * @desc Background fill to be applied to the description window. (solid/gradient)
@@ -47,6 +54,11 @@
 * @desc How long should map name and description appear when displayed, in frames.
 * Default: 150
 * @default 150
+*
+* @param Hide Seen Map Description
+* @desc Hide map description if map has been seen. (on/off)
+* Default: off
+* @default off
 */
 
 var VividXP = VividXP || {};
@@ -76,6 +88,10 @@ VividXP.CustomMapDescriptions.WindowHeight = Number(
 
 VividXP.CustomMapDescriptions.DisplayLength = Number(
 	VividXP.CustomMapDescriptions.Parameters["Map Name and Description Display Time"]
+);
+
+VividXP.CustomMapDescriptions.HideSeenMaps = String(
+    VividXP.CustomMapDescriptions.Parameters["Hide Seen Map Description"]
 );
 
 (function() {
@@ -143,7 +159,7 @@ VividXP.CustomMapDescriptions.DisplayLength = Number(
 
     Window_MapDescription.prototype.refresh = function() {
         this.contents.clear();
-        if ($gameMap.displayName()) {
+        if ($dataMap.meta.vividXPMD) {
             var width = this.contentsWidth();
             var height = this.contentsHeight();
             this.drawBackground(0, 0, width, height);
@@ -182,6 +198,15 @@ VividXP.CustomMapDescriptions.DisplayLength = Number(
         }
     };
 
+    Window_MapDescription.prototype.showMapDescription = function() {
+        if (VividXP.CustomMapDescriptions.HideSeenMaps === 'off'){
+            return $gameMap.isNameDisplayEnabled();
+        } else if (VividXP.CustomMapDescriptions.HideSeenMaps === 'on') {
+            return $gameMap.isNameDisplayEnabled() &&
+                ($gameMap.hasMapBeenSeen($gameMap._mapId) === false);
+        }
+    };
+
     //-----------------------------------------------------------------------------
     // Scene_Map overrides
     //
@@ -204,8 +229,70 @@ VividXP.CustomMapDescriptions.DisplayLength = Number(
 
     Scene_Map.prototype.start = function() {
         _Scene_Map_start.call(this);
-        if (this._transfer) {
+        if (this._transfer && this._mapNameDescription.showMapDescription()) {
             this._mapNameDescription.open();
+        }
+        $gameMap.markMapAsSeen($gameMap._mapId);
+    };
+
+    //-----------------------------------------------------------------------------
+    // Game_Map overrides
+    //
+    // This plugin overrides the initialize function to add an array of maps the
+    // player has visited. It also adds new functions to check and manipulate that
+    // array.
+
+    var _Game_Map_initialize = Game_Map.prototype.initialize;
+
+    Game_Map.prototype.initialize = function() {
+        this._visitedMaps = [];
+        _Game_Map_initialize.call(this);
+    };
+
+    Game_Map.prototype.hasMapBeenSeen = function(mapId) {
+        return this._visitedMaps.indexOf(mapId) !== -1;
+    };
+
+    Game_Map.prototype.markMapAsSeen = function(mapId) {
+        if (this.hasMapBeenSeen(mapId) === false){
+            this._visitedMaps.push(mapId);
+        }
+    };
+
+    Game_Map.prototype.clearSeenMaps = function() {
+        this._visitedMaps = [];
+    };
+
+    Game_Map.prototype.markMapAsUnseen = function(mapId) {
+        var mapIndex = this._visitedMaps.indexOf(mapId);
+        if (mapIndex !== -1) {
+            this._visitedMaps.splice(mapIndex, 1);
+        }
+    };
+
+
+    //-----------------------------------------------------------------------------
+    // Game_Interpreter overrides
+    //
+    // This plugin overrides the pluginCommand function to add plugin commands
+    // for this plugin for marking a map as seen/unseen or clearing the seen
+    // map list.
+    var _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
+
+    Game_Interpreter.prototype.pluginCommand = function(command, args) {
+        _Game_Interpreter_pluginCommand.call(this, command, args);
+        if (command === 'VividXPMD') {
+            switch (args[0]) {
+            case 'markSeen':
+                $gameMap.markMapAsSeen(Number(args[1]));
+                break;
+            case 'markUnseen':
+                $gameMap.markMapAsUnseen(Number(args[1]));
+                break;
+            case 'clearSeenMaps':
+                $gameMap.clearSeenMaps();
+                break;
+            }
         }
     };
 
